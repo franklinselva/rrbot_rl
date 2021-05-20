@@ -51,8 +51,8 @@ def rrarm_positions_publisher():
 
 def rrarm_initial_joints_position(joint1initial_position, joint2initial_position):
     publish_joints_position(joint1initial_position, joint2initial_position)
-    print("%.2f joint1 position:" % (joint1initial_position))
-    print("%.2f joint2 position:" % (joint2initial_position))
+    # print("%.2f joint1 position:" % (joint1initial_position))
+    # print("%.2f joint2 position:" % (joint2initial_position))
 
 
 def rrarm_pushing_object(joint1initial_position, joint2initial_position, move_step_joint1, move_step_joint2):
@@ -60,7 +60,7 @@ def rrarm_pushing_object(joint1initial_position, joint2initial_position, move_st
         joint1_position = joint1initial_position + move_step_joint1 * x
         joint2_position = joint2initial_position - move_step_joint2 * x
         publish_joints_position(joint1_position, joint2_position)
-        print("%.2f joint2 position:" % (joint2_position))
+        # print("%.2f joint2 position:" % (joint2_position))
         rospy.sleep(0.2)
     return joint1_position, joint2_position
 
@@ -71,7 +71,7 @@ def rrarm_roll_back(joint1_position, joint2_position, step_upward1, step_upward2
         joint1_position = joint1_position - step_upward1
         publish_joints_position(joint1_position, joint2_position)
         rospy.sleep(0.2)
-        print("%.2f joint1 position:" % (joint1_position))
+        # print("%.2f joint1 position:" % (joint1_position))
     return joint1_position, joint2_position
 
 
@@ -80,7 +80,7 @@ def rrarm_lift_up(joint1_position, step_upward1):
         joint1_position = joint1_position - step_upward1 * x
         publish_joint_position(joint1_position, 1)
         rospy.sleep(0.2)
-        print("%.2f joint1 position:" % (joint1_position))
+        # print("%.2f joint1 position:" % (joint1_position))
     return joint1_position
 
 
