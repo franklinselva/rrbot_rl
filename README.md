@@ -16,7 +16,7 @@ Then build the package when you are in workspace `robot_ws/`
 catkin_make
 ```
 
-## Execution
+## Usage
 
 To start the environment setup for the reinforcement learning,
 
@@ -24,6 +24,12 @@ To start the environment setup for the reinforcement learning,
 roslaunch rrbot_rl env_setup.launch
 ```
 
+
+To test the ros controller, run in a new terminal
+
+```
+rosrun rrbot_rl move_box
+```
 ## Todo
 
 - Build the environment mode
