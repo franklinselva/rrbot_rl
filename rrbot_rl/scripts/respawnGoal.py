@@ -1,61 +1,99 @@
 import rospy
-import random
 import time
 import os
-from gazebo_msgs.srv import SpawnModel, DeleteModel
-from gazebo_msgs.msg import ModelStates
+from gazebo_msgs.srv import DeleteModel, GetModelState, SetModelState
+from gazebo_msgs.msg import ModelState
 from geometry_msgs.msg import Pose
+from std_msgs.msg import Float64
 
 
 class Respawn():
     def __init__(self):
+        # Initialization of node for controlling joint1 and joint2 positions.
+        rospy.init_node('respawner_node', anonymous=True)
+
+        rate = rospy.Rate(80)  # Rate 80 Hz
+
         self.modelPath = os.path.dirname(os.path.realpath(__file__))
-        print(self.modelPath)
-        self.modelPath = self.modelPath.replace('rrbot/src',
-                                                'turtlebot3_simulations/turtlebot3_gazebo/models/turtlebot3_square/goal_box/model.sdf')
-        print(self.modelPath)
-        self.f = open(self.modelPath, 'r')
-        self.model = self.f.read()
-        self.goal_position = Pose()
-        self.init_goal_x = 1.5
-        self.init_goal_y = -0.5
-        self.goal_position.position.x = self.init_goal_x
-        self.goal_position.position.y = self.init_goal_y
-        self.modelName = 'goal'
-        self.obstacle_1 = 0.6, 0.6
-        self.obstacle_2 = 0.6, -0.6
-        self.obstacle_3 = -0.6, 0.6
-        self.obstacle_4 = -0.6, -0.6
-        self.last_goal_x = self.init_goal_x
-        self.last_goal_y = self.init_goal_y
-        self.last_index = 0
-        self.sub_model = rospy.Subscriber(
-            'gazebo/model_states', ModelStates, self.checkModel)
-        self.check_model = False
-        self.index = 0
+        rospy.wait_for_service('/gazebo/get_model_state')
+        rospy.wait_for_service('gazebo/set_model_state')
+        rospy.loginfo("Gazebo services loaded")
 
-        rospy.loginfo("Goal position : %.1f, %.1f", self.goal_position.position.x,
-                      self.goal_position.position.y)
+        self.model_name = "cardboard_box"
 
-    def checkModel(self, model):
-        self.check_model = False
-        for i in range(len(model.name)):
-            if model.name[i] == "goal":
-                self.check_model = True
+        # Define publishers for joint1 and joint2 position controller commands.
+        self.joint1publisher = rospy.Publisher(
+            '/rrbot/joint1_position_controller/command', Float64, queue_size=10)
+        self.joint2publisher = rospy.Publisher(
+            '/rrbot/joint2_position_controller/command', Float64, queue_size=10)
 
-    def respawnModel(self):
-        while True:
-            if not self.check_model:
-                rospy.wait_for_service('gazebo/spawn_sdf_model')
-                spawn_model_prox = rospy.ServiceProxy(
-                    'gazebo/spawn_sdf_model', SpawnModel)
-                spawn_model_prox(self.modelName, self.model,
-                                 'robotos_name_space', self.goal_position, "world")
-                # rospy.loginfo("Goal position : %.1f, %.1f", self.goal_position.position.x,
-                #              self.goal_position.position.y)
-                break
-            else:
-                pass
+        self.positioning = True
+        self.initial_EE_pose = [1.0, 2.4]
+        self.joint_step = [0.01, 0.035]
+        self.step_upward = [0.02, 0.04]
+
+        self.current_EE_pose = self.initial_EE_pose
+
+        self.init_pose = self.getModelState()
+        self.robot_set_start()
+
+    def joint_publisher(self, joint1_position, joint2_position, joint=0):
+
+        if joint == 1:
+            self.joint1publisher(joint1_position)
+        elif joint == 2:
+            self.joint2publisher(joint2_position)
+        else:
+            self.joint1publisher.publish(joint1_position)
+            self.joint2publisher.publish(joint2_position)
+
+    def robot_set_start(self):
+        self.joint_publisher(self.initial_EE_pose[0], self.initial_EE_pose[1])
+
+    def robot_rollback(self, joint1_position, joint2_position):
+        for x in range(1, 10):
+            joint2_position = joint2_position + self.step_upward[1] * x
+            joint1_position = joint1_position - self.step_upward[0] * x
+            self.joint_publisher(joint1_position, joint2_position)
+
+        return joint1_position, joint2_position
+
+    def setModelState(self, pose):
+        model_state = ModelState()
+
+        model_state.model_name = self.model_name
+        model_state.pose = pose
+
+        try:
+            set_state = rospy.ServiceProxy(
+                '/gazebo/set_model_state', SetModelState)
+            response = set_state(model_state)
+        except rospy.ServiceException as e:
+            rospy.loginfo("Service call failed: %s" % e)
+
+    def getModelState(self):
+        pose = Pose()
+
+        try:
+            get_state = rospy.ServiceProxy(
+                '/gazebo/get_model_state', GetModelState)
+            response = get_state(self.model_name, "")
+        except rospy.ServiceException as e:
+            rospy.WARN("Service call failed: %s" % e)
+
+        return response.pose
+
+    def softRespawnModel(self):
+        try:
+            # Respawn the cardboard box
+            self.setModelState(self.init_pose)
+            self.robot_rollback(
+                self.initial_EE_pose[0], self.initial_EE_pose[1])
+
+            # Respawn the robot model
+
+        except rospy.ServiceException as e:
+            rospy.WARN("Soft Respawn Failed")
 
     def deleteModel(self):
         while True:
@@ -63,61 +101,36 @@ class Respawn():
                 rospy.wait_for_service('gazebo/delete_model')
                 del_model_prox = rospy.ServiceProxy(
                     'gazebo/delete_model', DeleteModel)
-                del_model_prox(self.modelName)
+                del_model_prox(self.model_name)
                 break
             else:
                 pass
 
-    def getPosition(self, position_check=False, delete=False):
+    def getPosition(self, delete=False):
         if delete:
             self.deleteModel()
 
-        if self.stage != 2:
-            while position_check:
-                goal_x = random.randrange(-12, 13) / 10.0
-                goal_y = random.randrange(-12, 13) / 10.0
-                if abs(goal_x - self.obstacle_1[0]) <= 0.4 and abs(goal_y - self.obstacle_1[1]) <= 0.4:
-                    position_check = True
-                elif abs(goal_x - self.obstacle_2[0]) <= 0.4 and abs(goal_y - self.obstacle_2[1]) <= 0.4:
-                    position_check = True
-                elif abs(goal_x - self.obstacle_3[0]) <= 0.4 and abs(goal_y - self.obstacle_3[1]) <= 0.4:
-                    position_check = True
-                elif abs(goal_x - self.obstacle_4[0]) <= 0.4 and abs(goal_y - self.obstacle_4[1]) <= 0.4:
-                    position_check = True
-                elif abs(goal_x - 0.0) <= 0.4 and abs(goal_y - 0.0) <= 0.4:
-                    position_check = True
-                else:
-                    position_check = False
+        ret = self.getModelState()
 
-                if abs(goal_x - self.last_goal_x) < 1 and abs(goal_y - self.last_goal_y) < 1:
-                    position_check = True
+        return ret.position.x, ret.position.y, ret.position.z
 
-                self.goal_position.position.x = goal_x
-                self.goal_position.position.y = goal_y
+    def setPosition(self, x, y, z):
+        pose = Pose()
 
-        else:
-            # while position_check:
-            # goal_x_list = [0.6, 1.9, 0.5, 0.2, -0.8, -1, -1.9, 0.5, 2, 0.5, 0, -0.1, -2]
-            # goal_y_list = [0, -0.5, -1.9, 1.5, -0.9, 1, 1.1, -1.5, 1.5, 1.8, -1, 1.6, -0.8]
+        pose.position.x, pose.position.y, pose.position.z = x, y, z
 
-            goal_x_list = [1.5]
-            goal_y_list = [-1.5]
+        self.setModelState(pose)
 
-            # self.index = random.randrange(0, 13)
-            # print(self.index, self.last_index)
-            # if self.last_index == self.index:
-            #     position_check = True
-            # else:
-            #     self.last_index = self.index
-            #     position_check = False
 
-            self.goal_position.position.x = goal_x_list[0]
-            self.goal_position.position.y = goal_y_list[0]
+if __name__ == "__main__":
+    spawner = Respawn()
 
-        time.sleep(0.5)
-        self.respawnModel()
+    x, y, z = spawner.getPosition()
+    print(x, y, z)
+    time.sleep(5)
 
-        self.last_goal_x = self.goal_position.position.x
-        self.last_goal_y = self.goal_position.position.y
+    spawner.setPosition(x + 0.5, y, z)
 
-        return self.goal_position.position.x, self.goal_position.position.y
+    time.sleep(10)
+
+    spawner.softRespawnModel()
