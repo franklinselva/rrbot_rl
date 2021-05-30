@@ -1,6 +1,6 @@
 import sympy as sym
 from sympy import MatMul, Matrix, simplify, solve
-from sympy import cos, sin
+from sympy import cos, sin, tan, atan2, acos
 from sympy.utilities.lambdify import lambdify
 from math import pi
 
@@ -10,6 +10,9 @@ class robot:
 
         self.theta_1 = sym.Symbol('theta1')
         self.theta_2 = sym.Symbol('theta2')
+        self.x, self.y, self.z = sym.Symbol(
+            'x'), sym.Symbol('y'), sym.Symbol('z')
+
         self.xEE, self.yEE, self.zEE = sym.Symbol(
             'xEE'), sym.Symbol('yEE'), sym.Symbol('zEE')
 
@@ -53,17 +56,16 @@ class robot:
         return self.px_function, self.py_function, self.pz_function
 
     def getInverseKinematics(self):
-        self.xEq = self.xEE == self.px
-        self.yEq = self.yEE == self.py
-        self.zEq = self.zEE == self.pz
+        self.z_modified = self.z - 2
+        self.theta2 = [acos((self.x*self.x + self.z_modified*self.z_modified - 1 - 1)/2),
+                       -acos((self.x * self.x + self.z_modified * self.z_modified - 1 - 1)/2)]
+        self.theta1 = [atan2(self.x, self.z_modified) - atan2(sin(self.theta_2), 1+cos(self.theta_2)),
+                       atan2(self.x, self.z_modified) + atan2(sin(self.theta_2), 1+cos(self.theta_2))]
 
-        self.IK = solve([self.xEq, self.yEq], [self.theta_1, self.theta_2])
-        print(self.IK)
         self.theta1_function = lambdify(
-            [self.xEE, self.yEE, self.zEE], self.IK[0])
+            [self.x, self.z, self.theta_2], self.theta1)
         self.theta2_function = lambdify(
-            [self.xEE, self.yEE, self.zEE], self.IK[1])
-
+            [self.x, self.z], self.theta2)
         return self.theta1_function, self.theta2_function
 
 
