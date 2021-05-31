@@ -87,8 +87,7 @@ class Respawn():
         try:
             # Respawn the cardboard box
             self.setModelState(self.init_pose)
-            self.robot_rollback(
-                self.initial_EE_pose[0], self.initial_EE_pose[1])
+            self.robot_set_start()
 
             # Respawn the robot model
 
