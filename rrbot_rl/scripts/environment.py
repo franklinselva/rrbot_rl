@@ -1,207 +1,205 @@
 #!/usr/bin/env python
 
-import copy
 import rospy
 import numpy as np
 import math
 from math import pi
+from random import uniform
 
-from geometry_msgs.msg import Twist, Point, Pose
-from sensor_msgs.msg import LaserScan
-from nav_msgs.msg import Odometry
+from geometry_msgs.msg import Pose
+from std_msgs.msg import Float64
 from std_srvs.srv import Empty
-from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 from .respawnGoal import Respawn
-target_not_movable = False
+
+q1Value, q2Value = Float64, Float64
+
+
+def q1jointCallback(data):
+    """Callback function for subscribing to the joint data of the robot
+
+    Args:
+        data (std_msgs/Float64): Incoming message from ROS server
+
+    Returns:
+        joint data for Robot joint 1 i.e. q1
+    """
+    q1Value = data.data
+
+
+def q2jointCallback(data):
+    """Callback function for subscribing to the joint data of the robot
+
+    Args:
+        data (std_msgs/Float64): Incoming message from ROS server
+
+    Returns:
+        joint data for Robot joint 1 i.e. q1
+    """
+    q2Value = data.data
 
 
 class Env():
     def __init__(self, action_dim=2, max_Q1_velocity=1., max_Q2_velocity=1.):
-        self.initGoal = True
-        self.get_goalbox = False
-        self.position = Pose()
-        self.threshold = 0.
-        self.lin_velocity = lin_velocity
-        self.ang_velocity = ang_velocity
-        self.pub_cmd_vel = rospy.Publisher('cmd_vel', Twist, queue_size=5)
-        self.sub_odom = rospy.Subscriber('odom', Odometry, self.getOdometry)
+        rospy.init_node("env_handler")
+
+        # Subscribers
+        self.q1_sub = rospy.Subscriber(
+            '/rrbot/joint1_position_controller/command', Float64, q1jointCallback)
+        self.q2_sub = rospy.Subscriber(
+            '/rrbot/joint2_position_controller/command', Float64, q2jointCallback)
+
+        # Publishers
+        self.q1_pub = rospy.Publisher(
+            '/rrbot/joint1_position_controller/command', Float64, queue_size=10)
+        self.q2_pub = rospy.Publisher(
+            '/rrbot/joint2_position_controller/command', Float64, queue_size=10)
+
+        # Gazebo services
         self.reset_proxy = rospy.ServiceProxy('gazebo/reset_simulation', Empty)
         self.unpause_proxy = rospy.ServiceProxy(
             'gazebo/unpause_physics', Empty)
         self.pause_proxy = rospy.ServiceProxy('gazebo/pause_physics', Empty)
+
         self.respawn_goal = Respawn()
-        self.past_distance = 0.
-        self.stopped = 0
         self.action_dim = action_dim
+
+        self.EE_position = Pose()
+        self.threshold = 0.05
+        self.prev_goal_distance = 0.
         # Keys CTRL + c will stop script
         rospy.on_shutdown(self.shutdown)
 
     def shutdown(self):
-        # you can stop turtlebot by publishing an empty Twist
-        # message
-        rospy.loginfo("Stopping TurtleBot")
-        self.pub_cmd_vel.publish(Twist())
+        """Performs envionrment shutdown on Keyboard Interrupt or ROS shutdown
+        """
+
+        rospy.loginfo("Stopping Robot at home position")
+        self.respawn_goal.robot_set_start()
         rospy.sleep(1)
 
     def getGoalDistace(self):
-        goal_distance = round(math.hypot(
-            self.goal_x - self.position.x, self.goal_y - self.position.y), 2)
+        """Calculates the euclidean distance between the cardboard box's current position and goal position
+
+        Returns:
+            goal_distance: Returns the goal distance in float
+        """
+        x, y, z = self.respawn_goal.getPosition()
+        goal_distance = round(
+            math.sqrt((self.goal_x - x) ** 2 + (self.goal_y - y) ** 2 + (self.goal_z - z) ** 2))
+
         self.past_distance = goal_distance
 
         return goal_distance
 
-    def getOdometry(self, odom):
-        self.past_position = copy.deepcopy(self.position)
-        self.position = odom.pose.pose.position
-        orientation = odom.pose.pose.orientation
-        orientation_list = [orientation.x,
-                            orientation.y, orientation.z, orientation.w]
-        _, _, yaw = euler_from_quaternion(orientation_list)
+    def getState(self):
+        """Gets the current state of the cardboard box and robot joint values in the current iteration.
 
-        goal_angle = math.atan2(
-            self.goal_y - self.position.y, self.goal_x - self.position.x)
+        Returns:
+            state: Numpy array of the current state
+        """
 
-        # print 'yaw', yaw
-        # print 'gA', goal_angle
+        response = self.respawn_goal.getModelState()
 
-        heading = goal_angle - yaw
-        # print 'heading', heading
-        if heading > pi:
-            heading -= 2 * pi
+        state = np.array(
+            [response.position.x, response.position.y, response.position.z, q1Value, q2Value])
 
-        elif heading < -pi:
-            heading += 2 * pi
+        return state, True
 
-        self.heading = round(heading, 3)
+    def setReward(self, state, done):
+        """Generates the reward function for the current state
 
-    def getState(self, scan):
-        '''
-        Gets the current state for the robot in the current environment
-        '''
+        Args:
+            state (np.array): The current state from the action performed
+            done (bool): Whether the action is performed or not
 
-        scan_range = []
-        heading = self.heading
-        min_range = 0.13
-        done = False
+        Returns:
+            reward (float): The generated reward value for the action performed
+        """
 
-        for i in range(len(scan.ranges)):
-            if scan.ranges[i] == float('Inf'):
-                scan_range.append(3.5)
-            elif np.isnan(scan.ranges[i]):
-                scan_range.append(0)
-            else:
-                scan_range.append(scan.ranges[i])
-
-        obstacle_min_range = round(min(scan_range), 2)
-        obstacle_angle = np.argmin(scan_range)
-
-        if min_range > min(scan_range) > 0:
-            done = True
-
-        current_distance = round(math.hypot(
-            self.goal_x - self.position.x, self.goal_y - self.position.y), 2)
-        if current_distance < 0.4:
-            self.get_goalbox = True
-
-        return scan_range + [heading, current_distance, obstacle_min_range, obstacle_angle], done
-
-    def setReward(self, state, done, action):
-        '''
-        Update reward for the status of the robot
-        '''
-
-        yaw_reward = []
-        current_distance = state[-3]
-        heading = state[-4]
-
-        for i in range(self.action_dim):
-            angle = -pi / 4 + heading + (pi / 8 * i) + pi / 2
-            tr = 1 - 4 * \
-                math.fabs(0.5 - math.modf(0.25 + 0.5 * angle %
-                          (2 * math.pi) / math.pi)[0])
-            yaw_reward.append(tr)
-
-        try:
-            distance_rate = 2 ** (current_distance / self.goal_distance)
-        except Exception as e:
-            distance_rate = 1.
-        # print (yaw_reward)
-        # reward = ((round(yaw_reward[action] * 5, 2)) * distance_rate)
+        reward = 0.
+        goal_distance = self.getGoalDistace()
 
         if done:
-            # rospy.loginfo("Collision!!")
-            reward = -150
-            self.pub_cmd_vel.publish(Twist())
-            self.collision += 1
+            reward += 10
 
-        if self.getGoalDistace() > self.threshold:
-            # rospy.loginfo("Taking more distance")
-            reward = -500
-            self.pub_cmd_vel.publish(Twist())
+        if goal_distance >= self.threshold and goal_distance > self.prev_goal_distance:
+            reward -= 2
 
-        if self.get_goalbox:
-            # rospy.loginfo("GOAL REACHED !!")
-            # print ('-'*100)
-            reward = 200
-            self.pub_cmd_vel.publish(Twist())
-            self.goal_x, self.goal_y = self.respawn_goal.getPosition(
-                True, delete=True)
-            self.goal_distance = self.getGoalDistace()
-            # self.get_goalbox = False
-            # self.reset()
+        if goal_distance < self.prev_goal_distance:
+            reward += 5
+
+        if goal_distance <= self.threshold:
+            reward += 10
 
         return reward
 
     def step(self, action):
-        '''
-        Handles iteration step
-        '''
+        """Performs the environment step function for the algorithm
 
-        max_angular_vel = self.ang_velocity
-        max_linear_vel = self.lin_velocity
-        ang_vel = ((self.action_dim - 1)/2 - action[1]) * max_angular_vel * 0.5
-        lin_vel = abs(((self.action_dim - 1)/2 -
-                      action[0]) * max_linear_vel * 0.5)
+        Args:
+            action (np.array): The joint values for the robot configurations
 
-        vel_cmd = Twist()
-        vel_cmd.linear.x = lin_vel
-        vel_cmd.angular.z = ang_vel
-        self.pub_cmd_vel.publish(vel_cmd)
+        Returns:
+            state (np.array): Present state after the action is performed 
+            reward (float): Current reward value for the action performed
+            done (bool): Confirms whether the step is performed or not
+        """
 
-        data = None
-        while data is None:
-            try:
-                # rospy.loginfo("Waiting for Laser Scan Data...")
-                data = rospy.wait_for_message('scan', LaserScan, timeout=5)
-            except:
-                pass
+        self.update_robot(action)
+        state, self.done = self.getState()
+        reward = self.setReward(state, self.done)
 
-        state, done = self.getState(data)
-        reward = self.setReward(state, done, action)
+        return state, reward, self.done
 
-        return np.asarray(state), reward, done
+    def update_robot(self, action):
+        """Update the robot position using the ROS controller. Publihses the joint values.
+
+        Args:
+            action (np.array): The joint values for the RRBOT
+        """
+
+        self.q1_pub.publish(action[0])
+        self.q2_pub.publish(action[1])
+
+        self.done = True
 
     def reset(self):
+        """Performs the simulation reset of the gazebo environemnt
+
+        Returns:
+            state(np.array): Returns the current state when performed reset
+        """
         rospy.wait_for_service('gazebo/reset_simulation')
         try:
             self.reset_proxy()
         except (rospy.ServiceException) as e:
             print("gazebo/reset_simulation service call failed")
 
-        data = None
-        while data is None:
-            try:
-                # rospy.loginfo("Waiting for Laser Scan Data...")
-                data = rospy.wait_for_message('scan', LaserScan, timeout=5)
-            except:
-                pass
-
         if self.initGoal:
-            self.goal_x, self.goal_y = self.respawn_goal.getPosition()
+            self.goal_x, self.goal_y, self.goal_z = self.get_goal_position()
             self.initGoal = False
 
         self.goal_distance = self.getGoalDistace()
-        state, done = self.getState(data)
+        state, self.done = self.getState()
 
-        return np.asarray(state)
+        return state
+
+    def get_goal_position(self):
+        """Generates the goal position for the cardboard box. Only the x coordinate should be varied the reset should stay constrained
+
+        Returns:
+            goal_i (float): goal coordinate of i coordinate system (3 Dimensional in this case)
+        """
+
+        init_pose = self.respawn_goal.init_pose
+        goal_x = uniform(init_pose.position.x - 0.5,
+                         init_pose.position.x + 0.5)
+        goal_y = init_pose.position.y
+        goal_z = init_pose.position.z
+
+        return goal_x, goal_y, goal_z
+
+
+if __name__ == "__main__":
+    env = Env()
