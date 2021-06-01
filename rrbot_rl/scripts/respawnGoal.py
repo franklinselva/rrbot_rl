@@ -68,7 +68,7 @@ class Respawn():
         Returns:
             joint1_position, joint2_position: Updated joint position value through steps
         """
-        for x in range(1, 10):
+        for x in range(1, 50):
             joint2_position = joint2_position + self.step_upward[1] * x
             joint1_position = joint1_position - self.step_upward[0] * x
             self.joint_publisher(joint1_position, joint2_position)
@@ -116,7 +116,7 @@ class Respawn():
         try:
             # Respawn the cardboard box
             self.setModelState(self.init_pose)
-            self.robot_set_start()
+            self.robot_rollback(1.0, 1.0)
 
             # Respawn the robot model
 
@@ -176,6 +176,6 @@ if __name__ == "__main__":
 
     spawner.setPosition(x + 0.5, y, z)
 
-    time.sleep(10)
+    time.sleep(5)
 
     spawner.softRespawnModel()
