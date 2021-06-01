@@ -30,6 +30,12 @@ To test the ros controller, run in a new terminal
 rosrun rrbot_rl move_box
 ```
 
+To test the reset mechanism, in ` cd src/rrbot_rl/rrbot_rl/scripts` &&
+
+```
+python3 respawnGoal.py
+```
+
 ## Todo
 
 - Build the environment mode
