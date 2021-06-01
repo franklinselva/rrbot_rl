@@ -67,6 +67,7 @@ class Env():
         self.EE_position = Pose()
         self.threshold = 0.05
         self.prev_goal_distance = 0.
+        self.setHome = [1.0, 2.4]
         # Keys CTRL + c will stop script
         rospy.on_shutdown(self.shutdown)
 
@@ -170,11 +171,7 @@ class Env():
         Returns:
             state(np.array): Returns the current state when performed reset
         """
-        rospy.wait_for_service('gazebo/reset_simulation')
-        try:
-            self.reset_proxy()
-        except (rospy.ServiceException) as e:
-            print("gazebo/reset_simulation service call failed")
+        self.respawn_goal.robot_rollback(self.setHome[0], self.setHome[1])
 
         if self.initGoal:
             self.goal_x, self.goal_y, self.goal_z = self.get_goal_position()
@@ -203,4 +200,3 @@ class Env():
 
 if __name__ == "__main__":
     env = Env()
-    
