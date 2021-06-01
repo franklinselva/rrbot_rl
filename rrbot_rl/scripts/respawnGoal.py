@@ -38,7 +38,13 @@ class Respawn():
         self.robot_set_start()
 
     def joint_publisher(self, joint1_position, joint2_position, joint=0):
+        """Publishes joint data to the robot
 
+        Args:
+            joint1_position (std_msgs/Float64): Joint value for q1
+            joint2_position (std_msgs/Float64): Joint value for q2
+            joint (int, optional): Select the joint that need to be published (1/2). Defaults to 0 (otherwise).
+        """
         if joint == 1:
             self.joint1publisher(joint1_position)
         elif joint == 2:
@@ -48,9 +54,20 @@ class Respawn():
             self.joint2publisher.publish(joint2_position)
 
     def robot_set_start(self):
+        """Sets robot to home position
+        """
         self.joint_publisher(self.initial_EE_pose[0], self.initial_EE_pose[1])
 
     def robot_rollback(self, joint1_position, joint2_position):
+        """Sets the rollback function for the rrbot
+
+        Args:
+            joint1_position (float): Joint position of q1
+            joint2_position (float): Joint position of q2
+
+        Returns:
+            joint1_position, joint2_position: Updated joint position value through steps
+        """
         for x in range(1, 10):
             joint2_position = joint2_position + self.step_upward[1] * x
             joint1_position = joint1_position - self.step_upward[0] * x
@@ -59,6 +76,11 @@ class Respawn():
         return joint1_position, joint2_position
 
     def setModelState(self, pose):
+        """Sets the model pose (here cardboard box)
+
+        Args:
+            pose (geomtery_msgs/Pose): Pose of the model to be set
+        """
         model_state = ModelState()
 
         model_state.model_name = self.model_name
@@ -72,6 +94,11 @@ class Respawn():
             rospy.loginfo("Service call failed: %s" % e)
 
     def getModelState(self):
+        """Get the current state of the mode (here cardboard box)
+
+        Returns:
+            pose (std_msgs/Pose): The current pose of the box model
+        """
         pose = Pose()
 
         try:
@@ -84,6 +111,8 @@ class Respawn():
         return response.pose
 
     def softRespawnModel(self):
+        """Performs instant reset of the model and the robot (doesn't perform inverse kinematics)
+        """
         try:
             # Respawn the cardboard box
             self.setModelState(self.init_pose)
@@ -95,6 +124,8 @@ class Respawn():
             rospy.WARN("Soft Respawn Failed")
 
     def deleteModel(self):
+        """Deletes the cardboard box model
+        """
         while True:
             if self.check_model:
                 rospy.wait_for_service('gazebo/delete_model')
@@ -106,6 +137,14 @@ class Respawn():
                 pass
 
     def getPosition(self, delete=False):
+        """Gets the current position of the model
+
+        Args:
+            delete (bool, optional): Delete the box model. Defaults to False.
+
+        Returns:
+            x, y, z (float): The position of the box model
+        """
         if delete:
             self.deleteModel()
 
@@ -114,6 +153,13 @@ class Respawn():
         return ret.position.x, ret.position.y, ret.position.z
 
     def setPosition(self, x, y, z):
+        """Sets the position of the cardboard box model
+
+        Args:
+            x (float): x-coordinate
+            y (float): y-coordinate
+            z (float): z-coordinate
+        """
         pose = Pose()
 
         pose.position.x, pose.position.y, pose.position.z = x, y, z
