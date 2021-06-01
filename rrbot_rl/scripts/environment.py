@@ -10,7 +10,7 @@ from geometry_msgs.msg import Pose
 from std_msgs.msg import Float64
 from std_srvs.srv import Empty
 
-from .respawnGoal import Respawn
+from respawnGoal import Respawn
 
 q1Value, q2Value = Float64, Float64
 
@@ -203,3 +203,4 @@ class Env():
 
 if __name__ == "__main__":
     env = Env()
+    
