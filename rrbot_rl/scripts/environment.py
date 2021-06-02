@@ -12,7 +12,7 @@ from std_srvs.srv import Empty
 
 from respawnGoal import Respawn
 
-q1Value, q2Value = Float64, Float64
+q1Value, q2Value = Float64(), Float64()
 
 
 def q1jointCallback(data):
@@ -41,7 +41,7 @@ def q2jointCallback(data):
 
 class Env():
     def __init__(self, action_dim=2, max_Q1_velocity=1., max_Q2_velocity=1.):
-        rospy.init_node("env_handler")
+        # rospy.init_node("env_handler")
 
         # Subscribers
         self.q1_sub = rospy.Subscriber(
@@ -68,6 +68,7 @@ class Env():
         self.threshold = 0.05
         self.prev_goal_distance = 0.
         self.setHome = [1.0, 2.4]
+        self.success = False
         # Keys CTRL + c will stop script
         rospy.on_shutdown(self.shutdown)
 
@@ -102,10 +103,10 @@ class Env():
 
         response = self.respawn_goal.getModelState()
 
-        state = np.array(
-            [response.position.x, response.position.y, response.position.z, q1Value, q2Value])
+        state = [response.position.x, response.position.y,
+                 response.position.z, q1Value.data, q2Value.data]
 
-        return state, True
+        return np.asarray(state, dtype=np.float32), True
 
     def setReward(self, state, done):
         """Generates the reward function for the current state
@@ -132,6 +133,7 @@ class Env():
 
         if goal_distance <= self.threshold:
             reward += 10
+            self.success = True
 
         return reward
 
@@ -142,7 +144,7 @@ class Env():
             action (np.array): The joint values for the robot configurations
 
         Returns:
-            state (np.array): Present state after the action is performed 
+            state (np.array): Present state after the action is performed
             reward (float): Current reward value for the action performed
             done (bool): Confirms whether the step is performed or not
         """
@@ -173,9 +175,7 @@ class Env():
         """
         self.respawn_goal.robot_rollback(self.setHome[0], self.setHome[1])
 
-        if self.initGoal:
-            self.goal_x, self.goal_y, self.goal_z = self.get_goal_position()
-            self.initGoal = False
+        self.goal_x, self.goal_y, self.goal_z = self.get_goal_position()
 
         self.goal_distance = self.getGoalDistace()
         state, self.done = self.getState()

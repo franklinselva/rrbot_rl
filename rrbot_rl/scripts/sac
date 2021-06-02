@@ -1,13 +1,7 @@
 #!/usr/bin/env python
 
-import tty
-import termios
-import select
 import copy
-import math
-import gc
 import os
-import json
 import numpy as np
 import random
 import time
@@ -15,9 +9,9 @@ import sys
 from collections import deque
 
 
-from .environment import Env
-from .utils.onu_noise import OUNoise
-from .utils.function import soft_update, hard_update
+from environment import Env
+from utils.onu_noise import OUNoise
+from utils.function import soft_update, hard_update
 
 import torch.nn as nn
 import torch.nn.functional as F
@@ -44,10 +38,10 @@ MAX_STEPS = 750
 MAX_BUFFER = 200000
 rewards_all_episodes = []
 
-STATE_DIMENSION = 364
+STATE_DIMENSION = 5
 ACTION_DIMENSION = 2
-ACTION_V_MAX = 1.  # m/s
-ACTION_W_MAX = 0.5  # rad/s
+q1_VMAX = 1.  # m/s
+q2_VMAX = 0.5  # rad/s
 
 
 BATCH_SIZE = 100
@@ -56,8 +50,8 @@ GAMMA = 0.99
 TAU = 0.001
 
 if is_training:
-    var_v = ACTION_V_MAX*.5
-    var_w = ACTION_W_MAX*2*.5
+    q1_vel = q1_VMAX*.5
+    q2_vel = q2_VMAX*2*.5
 
 x = 0
 y = 0
@@ -113,12 +107,12 @@ class Critic(nn.Module):
 
 
 class Actor(nn.Module):
-    def __init__(self, state_dim, action_dim, action_limit_v, action_limit_w):
+    def __init__(self, state_dim, action_dim, q1_vel, q2_vel):
         super(Actor, self).__init__()
         self.state_dim = state_dim = state_dim
         self.action_dim = action_dim
-        self.action_limit_v = action_limit_v
-        self.action_limit_w = action_limit_w
+        self.q1_vel = q1_vel
+        self.q2_vel = q2_vel
         self.action = torch.empty(action_dim)
 
         self.fa1 = nn.Linear(state_dim, 250)
@@ -143,12 +137,12 @@ class Actor(nn.Module):
         #nprint (action)
         try:
             if state.shape <= torch.Size([self.state_dim]):
-                action[0] = torch.sigmoid(action[0])*self.action_limit_v
-                action[1] = torch.tanh(action[1])*self.action_limit_w
+                action[0] = torch.sigmoid(action[0])*self.q1_vel
+                action[1] = torch.tanh(action[1])*self.q2_vel
 
             else:
-                action[:, 0] = torch.sigmoid(action[:, 0])*self.action_limit_v
-                action[:, 1] = torch.tanh(action[:, 1])*self.action_limit_w
+                action[:, 0] = torch.sigmoid(action[:, 0])*self.q1_vel
+                action[:, 1] = torch.tanh(action[:, 1])*self.q2_vel
 
         except Exception as e:
             pass
@@ -190,27 +184,23 @@ class MemoryBuffer:
 
 class Trainer:
 
-    def __init__(self, state_dim, action_dim, action_limit_v, action_limit_w, ram):
+    def __init__(self, state_dim, action_dim, q1_vel, q2_vel, ram):
         self.dirPath = os.path.dirname(os.path.realpath(__file__))
-        if rospy.get_param("/use_hitl"):
-            self.dirPath = self.dirPath.replace(
-                'turtlebot3_rl/src', 'turtlebot3_rl/saved_model/sac_discrete_hitl/model_')
-        else:
-            self.dirPath = self.dirPath.replace(
-                'turtlebot3_rl/src', 'turtlebot3_rl/saved_model/sac_discrete/model_')
+        self.dirPath = self.dirPath.replace(
+            'rrbot_rl/scripts', 'rrbot_rl/models/model_')
 
         self.state_dim = state_dim
         self.action_dim = action_dim
-        self.action_limit_v = action_limit_v
-        self.action_limit_w = action_limit_w
-        # print('w',self.action_limit_w)
+        self.q1_vel = q1_vel
+        self.q2_vel = q2_vel
+        # print('w',self.q2_vel)
         self.ram = ram
         #self.iter = 0
 
         self.actor = Actor(self.state_dim, self.action_dim,
-                           self.action_limit_v, self.action_limit_w)
+                           self.q1_vel, self.q2_vel)
         self.target_actor = Actor(
-            self.state_dim, self.action_dim, self.action_limit_v, self.action_limit_w)
+            self.state_dim, self.action_dim, self.q1_vel, self.q2_vel)
         self.actor_optimizer = torch.optim.Adam(
             self.actor.parameters(), LEARNING_RATE)
 
@@ -238,8 +228,8 @@ class Trainer:
         action = self.actor.forward(state).detach()
         noise = self.noise.get_noise()
         # print('noisea', noise)
-        noise[0] = noise[0]*self.action_limit_v
-        noise[1] = noise[1]*self.action_limit_w
+        noise[0] = noise[0]*self.q1_vel
+        noise[1] = noise[1]*self.q2_vel
         # print('noise', noise)
         new_action = action.data.numpy() + noise
         #print('action_no', new_action)
@@ -311,11 +301,10 @@ class Trainer:
 
 print('State Dimensions: ' + str(STATE_DIMENSION))
 print('Action Dimensions: ' + str(ACTION_DIMENSION))
-print('Action Max: ' + str(ACTION_V_MAX) +
-      ' m/s and ' + str(ACTION_W_MAX) + ' rad/s')
+
 ram = MemoryBuffer(MAX_BUFFER)
 trainer = Trainer(STATE_DIMENSION, ACTION_DIMENSION,
-                  ACTION_V_MAX, ACTION_W_MAX, ram)
+                  q1_VMAX, q2_VMAX, ram)
 noise = OUNoise(ACTION_DIMENSION, max_sigma=0.1,
                 min_sigma=0.1, decay_period=8000000)
 # trainer.load_models(560)
@@ -324,7 +313,7 @@ if __name__ == '__main__':
     rospy.init_node('sac_rrbot_trainer')
     pub_result = rospy.Publisher('result', Float32MultiArray, queue_size=5)
     result = Float32MultiArray()
-    env = Env(ACTION_DIMENSION, ACTION_V_MAX, ACTION_W_MAX)
+    env = Env(ACTION_DIMENSION, q1_VMAX, q2_VMAX)
     before_training = 4
 
     past_action = np.zeros(ACTION_DIMENSION)
@@ -374,7 +363,7 @@ if __name__ == '__main__':
             if step > 500:
                 done = True
 
-            if done or env.get_goalbox:  # or step == MAX_STEPS-1:
+            if done or env.success or step == MAX_STEPS-1:
 
                 m, s = divmod(int(time.time() - start_time), 60)
                 h, m = divmod(m, 60)
@@ -386,13 +375,9 @@ if __name__ == '__main__':
 
                 if step > 500:
                     rospy.loginfo("TIME OUT!!!")
-                elif done and not env.get_goalbox:
-                    rospy.loginfo("COLLISION OCCURED!!!")
-                    done = False
-                    env.reset()
-                elif env.get_goalbox:
+
+                elif env.success:
                     rospy.loginfo("GOAL REACHED!!!")
-                    env.get_goalbox = False
                     env.reset()
 
                 result = rewards_current_episode

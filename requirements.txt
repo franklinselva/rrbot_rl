@@ -1,16 +1,20 @@
 actionlib==1.13.2
 angles==1.9.13
+autopep8==1.5.7
 base-local-planner==1.17.1
 bondpy==1.8.6
 camera-calibration==1.15.3
 camera-calibration-parsers==1.12.0
 catkin==0.8.10
+catkin-pkg==0.4.23
 controller-manager==0.19.4
 controller-manager-msgs==0.19.4
 cv-bridge==1.15.0
 diagnostic-analysis==1.10.4
 diagnostic-common-diagnostics==1.10.4
 diagnostic-updater==1.10.4
+distro==1.5.0
+docutils==0.17.1
 dynamic-reconfigure==1.7.1
 gazebo-plugins==2.9.2
 gazebo-ros==2.9.2
@@ -28,7 +32,11 @@ laser-geometry==1.6.7
 message-filters==1.15.11
 mpmath==1.2.1
 numpy==1.20.3
+pycodestyle==2.7.0
+pyparsing==2.4.7
+python-dateutil==2.8.1
 python-qt-binding==0.4.3
+PyYAML==5.4.1
 qt-dotgraph==0.4.2
 qt-gui==0.4.2
 qt-gui-cpp==0.4.2
@@ -48,6 +56,7 @@ rosmaster==1.15.11
 rosmsg==1.15.11
 rosnode==1.15.11
 rosparam==1.15.11
+rospkg==1.3.0
 rospy==1.15.11
 rosservice==1.15.11
 rostest==1.15.11
@@ -58,7 +67,7 @@ rqt-action==0.4.9
 rqt-bag==0.5.1
 rqt-bag-plugins==0.5.1
 rqt-console==0.4.11
-rqt-dep==0.4.11
+rqt-dep==0.4.12
 rqt-graph==0.4.14
 rqt-gui==0.5.2
 rqt-gui-py==0.5.2
@@ -88,6 +97,7 @@ rqt-topic==0.4.12
 rqt-web==0.4.10
 rviz==1.14.7
 sensor-msgs==1.13.1
+six==1.16.0
 smach==2.5.0
 smach-ros==2.5.0
 smclib==1.8.6
@@ -98,6 +108,7 @@ tf2-geometry-msgs==0.7.5
 tf2-kdl==0.7.5
 tf2-py==0.7.5
 tf2-ros==0.7.5
+toml==0.10.2
 topic-tools==1.15.11
 torch==1.8.1
 typing-extensions==3.10.0.0

@@ -10,7 +10,7 @@ from std_msgs.msg import Float64
 class Respawn():
     def __init__(self):
         # Initialization of node for controlling joint1 and joint2 positions.
-        rospy.init_node('respawner_node', anonymous=True)
+        # rospy.init_node('respawner_node', anonymous=True)
 
         rate = rospy.Rate(80)  # Rate 80 Hz
 
