@@ -1,6 +1,6 @@
 # RRBOT RL
 
-This repository contains the implementation for integrating Reinforcement learning with 2R robot arm. The application is moving the cuboid using the robot arm to the desired position. The implementation is tested in ROS Noetic and the algorithm used for training the robot is Soft Actor Critic (SAC).
+This repository contains the implementation for integrating Reinforcement learning with 2R robot arm manipulator. The application is moving the cuboid using the robot arm to the desired position. The implementation is tested in ROS Noetic and the algorithm used for training the robot is Soft Actor Critic (SAC).
 
 ## Installation
 
@@ -24,19 +24,22 @@ To start the environment setup for the reinforcement learning,
 roslaunch rrbot_rl env_setup.launch
 ```
 
+To start the training process, in directory (from workspace) `src/rrbot_rl/rrbot_rl/scripts`
+
+```
+python3 sac
+```
+
+## Test
+
 To test the ros controller, run in a new terminal
 
 ```
 rosrun rrbot_rl move_box
 ```
 
-To test the reset mechanism, in ` cd src/rrbot_rl/rrbot_rl/scripts` &&
-
-```
-python3 respawnGoal.py
-```
-
 ## Todo
 
-- Build the environment mode
-- Implement SAC algorithm
+- Debugging the algorithm
+- Updating the IK reset mechanism
+- Implementing trajectory planning (on request)
