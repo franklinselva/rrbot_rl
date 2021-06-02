@@ -27,7 +27,7 @@
     <include>
       <uri>model://cardboard_box</uri>
       <name>cardboard_box</name>
-      <pose>1.822382 0.209075 1.165 2e-06 -0 0.</pose>
+      <pose>1.522382 0.209075 1.165 2e-06 -0 0.</pose>
     </include>
 
     <!-- Focus camera on tall pendulum -->

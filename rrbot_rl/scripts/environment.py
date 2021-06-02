@@ -107,7 +107,7 @@ class Env():
         state = [response.position.x, response.position.y,
                  response.position.z, q1Value.data, q2Value.data]
 
-        return np.asarray(state, dtype=np.float32), True
+        return np.asarray(state, dtype=np.float32)
 
     def setReward(self, state, done):
         """Generates the reward function for the current state
@@ -125,9 +125,6 @@ class Env():
         goal_distance = self.getGoalDistace()
         cube = self.respawn_goal.getModelState()
 
-        if done:
-            reward += 10
-
         if goal_distance >= self.threshold and goal_distance > self.prev_goal_distance:
             reward -= 2
             self.success = False
@@ -138,9 +135,10 @@ class Env():
             self.success = False
             self.done = False
 
-        if goal_distance <= self.threshold and done:
+        if goal_distance <= self.threshold:
             reward += 10
             self.success = True
+            self.done = True
 
         if cube.position.z <= 0.5:
             reward -= 50
@@ -164,7 +162,15 @@ class Env():
         """
 
         self.update_robot(action)
-        state, self.done = self.getState()
+
+        # Check whether the model is thrown
+        cube = self.respawn_goal.getModelState()
+
+        if cube.position.z <= 0.5:
+            self.box_thrown = True
+            self.success = False
+
+        state = self.getState()
         reward = self.setReward(state, self.done)
 
         return state, reward, self.done
@@ -187,16 +193,13 @@ class Env():
         Returns:
             state(np.array): Returns the current state when performed reset
         """
-        self.respawn_goal.robot_rollback(self.setHome[0], self.setHome[1])
+        self.respawn_goal.softRespawnModel()
         time.sleep(1)
 
         self.goal_x, self.goal_y, self.goal_z = self.get_goal_position()
 
         self.goal_distance = self.getGoalDistace()
-        state, self.done = self.getState()
-
-        if not self.success:
-            self.respawn_goal.setModelState(self.respawn_goal.init_pose)
+        state = self.getState()
 
         return state
 

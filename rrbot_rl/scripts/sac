@@ -363,7 +363,7 @@ if __name__ == '__main__':
             if step > 500:
                 done = True
 
-            if done or env.success or step == MAX_STEPS-1:
+            if done or env.success:  # step == MAX_STEPS-1:
 
                 m, s = divmod(int(time.time() - start_time), 60)
                 h, m = divmod(m, 60)
