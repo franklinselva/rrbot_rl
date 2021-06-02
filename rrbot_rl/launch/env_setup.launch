@@ -4,6 +4,6 @@
 
     <include file="$(find rrbot_control)/launch/rrbot_control.launch" />
     
-    <node name="image_viewer" pkg="image_view" type="image_view" output="screen" 
-        args="image:=/rrbot/camera1/image_raw" />
+    <!--node name="image_viewer" pkg="image_view" type="image_view" output="screen" 
+        args="image:=/rrbot/camera1/image_raw" /-->
 </launch>

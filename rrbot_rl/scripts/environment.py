@@ -3,7 +3,7 @@
 import rospy
 import numpy as np
 import math
-from math import pi
+import time
 from random import uniform
 
 from geometry_msgs.msg import Pose
@@ -65,10 +65,11 @@ class Env():
         self.action_dim = action_dim
 
         self.EE_position = Pose()
-        self.threshold = 0.05
+        self.threshold = 0.1
         self.prev_goal_distance = 0.
         self.setHome = [1.0, 2.4]
         self.success = False
+        self.box_thrown = False
         # Keys CTRL + c will stop script
         rospy.on_shutdown(self.shutdown)
 
@@ -120,20 +121,33 @@ class Env():
         """
 
         reward = 0.
+        cube = Pose()
         goal_distance = self.getGoalDistace()
+        cube = self.respawn_goal.getModelState()
 
         if done:
             reward += 10
 
         if goal_distance >= self.threshold and goal_distance > self.prev_goal_distance:
             reward -= 2
+            self.success = False
+            self.done = False
 
         if goal_distance < self.prev_goal_distance:
             reward += 5
+            self.success = False
+            self.done = False
 
-        if goal_distance <= self.threshold:
+        if goal_distance <= self.threshold and done:
             reward += 10
             self.success = True
+
+        if cube.position.z <= 0.5:
+            reward -= 50
+            self.success = False
+            self.box_thrown = True
+        else:
+            self.box_thrown = False
 
         return reward
 
@@ -174,11 +188,15 @@ class Env():
             state(np.array): Returns the current state when performed reset
         """
         self.respawn_goal.robot_rollback(self.setHome[0], self.setHome[1])
+        time.sleep(1)
 
         self.goal_x, self.goal_y, self.goal_z = self.get_goal_position()
 
         self.goal_distance = self.getGoalDistace()
         state, self.done = self.getState()
+
+        if not self.success:
+            self.respawn_goal.setModelState(self.respawn_goal.init_pose)
 
         return state
 

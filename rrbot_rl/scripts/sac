@@ -370,13 +370,17 @@ if __name__ == '__main__':
                 print('-'*100)
                 rospy.loginfo("SAC MODEL FOR RRBOT!!!")
 
-                rospy.loginfo('Ep: %d Q value: %.2f Reward %.2f Sigma: %.2f time: %d:%02d:%02d',
-                              ep, trainer.get_qvalue(), float(rewards_current_episode), noise.sigma, h, m, s)
+                rospy.loginfo('Ep: %d Q value: %.2f Reward %.2f time: %d:%02d:%02d',
+                              ep, trainer.get_qvalue(), float(rewards_current_episode), h, m, s)
 
                 if step > 500:
                     rospy.loginfo("TIME OUT!!!")
 
-                elif env.success:
+                if env.box_thrown:
+                    rospy.loginfo("BOX THROWN!! RESETTING")
+                    env.reset()
+
+                elif env.success and done:
                     rospy.loginfo("GOAL REACHED!!!")
                     env.reset()
 
@@ -388,7 +392,7 @@ if __name__ == '__main__':
 
                 # if done or collided
                 break
-        if ep % 10 == 0:
+        if ep % 200 == 0:
             trainer.save_models(ep)
 
 print('Completed Training')
