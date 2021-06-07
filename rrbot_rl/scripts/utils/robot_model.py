@@ -61,7 +61,7 @@ class robot:
         """Get the function equation for the forward kinematics. Only the position of the model is considered and is appropriate
 
         Returns:
-            px_function, py_function, pz_function(sympy symbolic function): The functions of the position matrix of the robot end effector
+            px_function, py_function, pz_function(sympy lambdify function): The functions of the position matrix of the robot end effector
         """
         self.px = self.T[0, 3]
         self.py = self.T[1, 3]
@@ -84,7 +84,7 @@ class robot:
         """Get the inverse kinematics of the robot model 
 
         Returns:
-            theta1_function, theta2_function (sympy symbolic function): The theta functions given the position of the end-effector
+            theta1_function, theta2_function (sympy lambdify function): The theta functions given the position of the end-effector
         """
         self.x_modified = self.x - 0.1
         self.z_modified = self.z - 2
