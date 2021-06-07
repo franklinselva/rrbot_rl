@@ -7,6 +7,8 @@ from math import pi
 
 class robot:
     def __init__(self):
+        """Class holding the essential parameters for kinematics and homogenous transformation matrix of the robot model
+        """
 
         self.theta_1 = sym.Symbol('theta1')
         self.theta_2 = sym.Symbol('theta2')
@@ -33,18 +35,34 @@ class robot:
                            cos(self.theta_2)*sin(0), 1*sin(self.theta_2)],
                           [0, sin(0), cos(0), 0.1],
                           [0, 0, 0, 1]])
-
+        self.print = True
         self.getTMatrix()
         self.getForwardKinematics()
         self.getInverseKinematics()
+        self.print = False
 
     def getTMatrix(self):
+        """Det the transformation matrix of the robto
+
+        Returns:
+            T (sympy.symbolFunction): The sympy based symbolic function for calculating the transformation provided the theta.
+        """
         self.T = MatMul(self.t1*self.t2*self.t3)
         self.T = simplify(self.T)
+
+        if (self.print):
+            print("\v")
+            print("TRANSFORMATION MATRIX FOR ROBOT MODEL FROM BASE FRAME TO END EFFECTOR")
+            print(self.T)
 
         return self.T
 
     def getForwardKinematics(self):
+        """Get the function equation for the forward kinematics. Only the position of the model is considered and is appropriate
+
+        Returns:
+            px_function, py_function, pz_function(sympy symbolic function): The functions of the position matrix of the robot end effector
+        """
         self.px = self.T[0, 3]
         self.py = self.T[1, 3]
         self.pz = self.T[2, 3]
@@ -53,14 +71,27 @@ class robot:
         self.py_function = lambdify([self.theta_1, self.theta_2], self.py)
         self.pz_function = lambdify([self.theta_1, self.theta_2], self.pz)
 
+        if (self.print):
+            print("\v")
+            print("FORWARD KINEMTICS OF THE MODEL IS")
+            print("X: {}".format(self.px))
+            print("Y: {}".format(self.py))
+            print("Z: {}".format(self.pz))
+
         return self.px_function, self.py_function, self.pz_function
 
     def getInverseKinematics(self):
+        """Get the inverse kinematics of the robot model 
+
+        Returns:
+            theta1_function, theta2_function (sympy symbolic function): The theta functions given the position of the end-effector
+        """
+        self.x_modified = self.x - 0.1
         self.z_modified = self.z - 2
-        self.theta2 = [acos((self.x*self.x + self.z_modified*self.z_modified - 1 - 1)/2),
-                       -acos((self.x * self.x + self.z_modified * self.z_modified - 1 - 1)/2)]
-        self.theta1 = [atan2(self.x, self.z_modified) - atan2(sin(self.theta_2), 1+cos(self.theta_2)),
-                       atan2(self.x, self.z_modified) + atan2(sin(self.theta_2), 1+cos(self.theta_2))]
+        self.theta2 = [acos((self.x_modified*self.x_modified + self.z_modified*self.z_modified - 1 - 1)/2),
+                       -acos((self.x_modified * self.x_modified + self.z_modified * self.z_modified - 1 - 1)/2)]
+        self.theta1 = [atan2(self.z_modified, self.x_modified) - atan2(sin(self.theta_2), 1+cos(self.theta_2)),
+                       atan2(self.z_modified, self.x_modified) + atan2(sin(self.theta_2), 1+cos(self.theta_2))]
 
         self.theta1_function = lambdify(
             [self.x, self.z, self.theta_2], self.theta1)
@@ -72,4 +103,8 @@ class robot:
 if __name__ == "__main__":
     dh = robot()
     theta1, theta2 = dh.getInverseKinematics()
-    dh.getForwardKinematics()
+    px, py, pz = dh.getForwardKinematics()
+
+    print(px(1.0, 2.5), pz(1.0, 2.5))
+    print(theta2(px(1.0, 2.5), pz(1.0, 2.5)))
+    print(theta1(px(1.0, 2.4), pz(1.0, 2.4), theta2(px(1.0, 2.4), pz(1.0, 2.4))))
