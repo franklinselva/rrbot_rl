@@ -138,9 +138,14 @@ class Respawn():
             rospy.WARN("Soft Reset Failed")
 
     def hardRespawnModel(self):
+        """The hard reset is made in this function involving inverse kinematics and 
+        joint space based trajectory planning for this application
+        """
+        joint1_position, joint2_position = 0, 0
+
         try:
             # Reset Cardboard Box
-            # Due to varying dynamic properties, changing the plan for trajectory planning
+            # Due to varying dynamic properties, changing the plan for trajectory planning (Joint space)
             joint1initial_position, joint2initial_position = self.setRobotState(
                 1, 2)
             for x in range(0, 50):
@@ -149,10 +154,19 @@ class Respawn():
                 joint2_position = joint2initial_position - \
                     self.joint_step[1] * x
                 self.joint_publisher(joint1_position, joint2_position)
-                # print("%.2f joint2 position:" % (joint2_position))
                 rospy.sleep(0.2)
 
             # Reset Robot Model
+            # The planning is still based on joint space configurations
+            joint1initial_position, joint2initial_position = joint1_position, joint2_position
+            for x in range(1, 30):
+                joint1_position = joint1initial_position + \
+                    self.joint_step[0] * x
+                joint2_position = joint2initial_position + \
+                    self.joint_step[1] * x
+                self.joint_publisher(joint1_position, joint2_position)
+                rospy.sleep(0.2)
+            rospy.sleep(1)
             self.setRobotState(1, 2)
 
             # self.setRobotState(1.5, 1.16)
