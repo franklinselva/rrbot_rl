@@ -140,10 +140,20 @@ class Respawn():
     def hardRespawnModel(self):
         try:
             # Reset Cardboard Box
-            self.setRobotState(2, 2)
+            # Due to varying dynamic properties, changing the plan for trajectory planning
+            joint1initial_position, joint2initial_position = self.setRobotState(
+                1, 2)
+            for x in range(0, 50):
+                joint1_position = joint1initial_position + \
+                    self.joint_step[0] * x
+                joint2_position = joint2initial_position - \
+                    self.joint_step[1] * x
+                self.joint_publisher(joint1_position, joint2_position)
+                # print("%.2f joint2 position:" % (joint2_position))
+                rospy.sleep(0.2)
 
             # Reset Robot Model
-            self.setRobotState(0.5, 2) 
+            self.setRobotState(1, 2)
 
             # self.setRobotState(1.5, 1.16)
 
@@ -227,10 +237,10 @@ class Respawn():
                 "Unable to perform hard reset. Performing simulation reset")
             self.robot_set_start()
         else:
-            # An offset of pi is added to support the frame changes in x-axis
-            self.joint_publisher(theta11[0] + np.pi/2, theta2[0])
+            # An offset of pi/2 is added to support the frame changes in x-axis
+            self.joint_publisher(theta11[1], theta2[0])
 
-        time.sleep(3)
+        return theta11[1], theta2[0]
 
 
 if __name__ == "__main__":

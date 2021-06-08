@@ -35,7 +35,7 @@ class robot:
                            cos(self.theta_2)*sin(0), 1*sin(self.theta_2)],
                           [0, sin(0), cos(0), 0.1],
                           [0, 0, 0, 1]])
-        self.print = True
+        self.print = False  # Change to print the transformation matrix
         self.getTMatrix()
         self.getForwardKinematics()
         self.getInverseKinematics()
@@ -71,6 +71,15 @@ class robot:
         self.py_function = lambdify([self.theta_1, self.theta_2], self.py)
         self.pz_function = lambdify([self.theta_1, self.theta_2], self.pz)
 
+        # Correction
+        self.theta1_modified = self.theta_1 + pi/2  # Due to correction in robot frame
+        self.px_function = lambdify([self.theta_1, self.theta_2],
+                                    cos(self.theta1_modified) +
+                                    cos(self.theta1_modified+self.theta_2))
+
+        self.pz_function = lambdify([self.theta_1, self.theta_2],
+                                    sin(self.theta1_modified) + sin(self.theta1_modified + self.theta_2)+2)
+
         if (self.print):
             print("\v")
             print("FORWARD KINEMTICS OF THE MODEL IS")
@@ -81,7 +90,7 @@ class robot:
         return self.px_function, self.py_function, self.pz_function
 
     def getInverseKinematics(self):
-        """Get the inverse kinematics of the robot model 
+        """Get the inverse kinematics of the robot model
 
         Returns:
             theta1_function, theta2_function (sympy lambdify function): The theta functions given the position of the end-effector
@@ -105,5 +114,7 @@ if __name__ == "__main__":
     theta1, theta2 = dh.getInverseKinematics()
     px, py, pz = dh.getForwardKinematics()
 
-    print(theta2(0, 4))
-    print(theta1(0, 4, theta2(0, 0)))
+    print(px(0.5, 1), pz(0.5, 1))
+
+    print(theta2(1, 2))
+    print(theta1(1, 2, theta2(1, 2)))
