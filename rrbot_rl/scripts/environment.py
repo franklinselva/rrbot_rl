@@ -61,7 +61,7 @@ class Env():
             'gazebo/unpause_physics', Empty)
         self.pause_proxy = rospy.ServiceProxy('gazebo/pause_physics', Empty)
 
-        self.respawn_goal = Respawn()
+        self.respawner = Respawn()
         self.action_dim = action_dim
 
         self.EE_position = Pose()
@@ -78,7 +78,7 @@ class Env():
         """
 
         rospy.loginfo("Stopping Robot at home position")
-        self.respawn_goal.robot_set_start()
+        self.respawner.robot_set_start()
         rospy.sleep(1)
 
     def getGoalDistace(self):
@@ -87,7 +87,7 @@ class Env():
         Returns:
             goal_distance: Returns the goal distance in float
         """
-        x, y, z = self.respawn_goal.getPosition()
+        x, y, z = self.respawner.getPosition()
         goal_distance = round(
             math.sqrt((self.goal_x - x) ** 2 + (self.goal_y - y) ** 2 + (self.goal_z - z) ** 2))
 
@@ -102,7 +102,7 @@ class Env():
             state: Numpy array of the current state
         """
 
-        response = self.respawn_goal.getModelState()
+        response = self.respawner.getModelState()
 
         state = [response.position.x, response.position.y,
                  response.position.z, q1Value.data, q2Value.data]
@@ -123,7 +123,7 @@ class Env():
         reward = 0.
         cube = Pose()
         goal_distance = self.getGoalDistace()
-        cube = self.respawn_goal.getModelState()
+        cube = self.respawner.getModelState()
 
         if goal_distance >= self.threshold and goal_distance > self.prev_goal_distance:
             reward -= 2
@@ -164,7 +164,7 @@ class Env():
         self.update_robot(action)
 
         # Check whether the model is thrown
-        cube = self.respawn_goal.getModelState()
+        cube = self.respawner.getModelState()
 
         if cube.position.z <= 0.5:
             self.box_thrown = True
@@ -193,7 +193,7 @@ class Env():
         Returns:
             state(np.array): Returns the current state when performed reset
         """
-        self.respawn_goal.softRespawnModel()
+        self.respawner.softRespawnModel()
         time.sleep(1)
 
         self.goal_x, self.goal_y, self.goal_z = self.get_goal_position()
@@ -210,7 +210,7 @@ class Env():
             goal_i (float): goal coordinate of i coordinate system (3 Dimensional in this case)
         """
 
-        init_pose = self.respawn_goal.init_pose
+        init_pose = self.respawner.init_pose
         goal_x = uniform(init_pose.position.x - 0.5,
                          init_pose.position.x + 0.5)
         goal_y = init_pose.position.y

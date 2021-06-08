@@ -1,16 +1,20 @@
 import rospy
 import time
 import os
+import numpy as np
+
 from gazebo_msgs.srv import DeleteModel, GetModelState, SetModelState
 from gazebo_msgs.msg import ModelState
 from geometry_msgs.msg import Pose
 from std_msgs.msg import Float64
 
+from utils import robot_model
+
 
 class Respawn():
     def __init__(self):
         # Initialization of node for controlling joint1 and joint2 positions.
-        # rospy.init_node('respawner_node', anonymous=True)
+        rospy.init_node('respawner_node', anonymous=True)
 
         rate = rospy.Rate(80)  # Rate 80 Hz
 
@@ -36,6 +40,15 @@ class Respawn():
 
         self.init_pose = self.getModelState()
         self.robot_set_start()
+
+        # Set the robot kinematics model
+
+        self.robot_model = robot_model.robot()
+        px, py, pz = self.robot_model.getForwardKinematics()
+        self.X = [px, py, pz]  # The state function of the robot model
+
+        # Theta function of the tobot model
+        self.theta1, self.theta2 = self.robot_model.getInverseKinematics()
 
     def joint_publisher(self, joint1_position, joint2_position, joint=0):
         """Publishes joint data to the robot
@@ -111,18 +124,31 @@ class Respawn():
         return response.pose
 
     def softRespawnModel(self):
-        """Performs instant reset of the model and the robot (doesn't perform inverse kinematics)
+        """Performs instant simulation reset of the model and the robot (doesn't perform inverse kinematics)
         """
         try:
-            # Respawn the cardboard box
-            self.setModelState(self.init_pose)
-            self.robot_rollback(
-                self.initial_EE_pose[0], self.initial_EE_pose[1])
 
-            # Respawn the robot model
+            # Reset Cardboard Box
+            self.setModelState(self.init_pose)
+
+            # Reset Robot Model
+            self.robot_set_start()
 
         except rospy.ServiceException as e:
-            rospy.WARN("Soft Respawn Failed")
+            rospy.WARN("Soft Reset Failed")
+
+    def hardRespawnModel(self):
+        try:
+            # Reset Cardboard Box
+            self.setRobotState(2, 2)
+
+            # Reset Robot Model
+            self.setRobotState(0.5, 2) 
+
+            # self.setRobotState(1.5, 1.16)
+
+        except rospy.ServiceException as e:
+            rospy.WARN("Hard Reset Failed")
 
     def deleteModel(self):
         """Deletes the cardboard box model
@@ -167,16 +193,54 @@ class Respawn():
 
         self.setModelState(pose)
 
+    def getRobotState(self, theta_1, theta_2):
+        """Gets the current position of the robot end effector
+
+        Args:
+            theta_1 (float): Joint angle of joint 1 in radians
+            theta_2 (float): Joint angle of joint 2 in radians
+
+        Returns:
+            X (tuple): Tuple of the state [x, y, z] of the robot model
+        """
+
+        x = self.X[0](theta_1, theta_2)
+        y = self.X[1](theta_1, theta_2)
+        z = self.X[2](theta_1, theta_2)
+
+        return tuple([x, y, z])
+
+    def setRobotState(self, px, pz):
+        """Sets the robot end effector to the desired pose given x and z (Note: y remains constant for this model)
+
+        Args:
+            px (float): X coordinate of the robot end-effector
+            pz (float): Z coordinate of the robot end-effector
+        """
+
+        theta2 = self.theta2(px, pz)
+        theta11 = self.theta1(px, pz, theta2[0])
+        theta12 = self.theta1(px, pz, theta2[1])
+
+        if np.nan in theta2 or np.nan in theta11 or np.nan in theta12:
+            rospy.WARN(
+                "Unable to perform hard reset. Performing simulation reset")
+            self.robot_set_start()
+        else:
+            # An offset of pi is added to support the frame changes in x-axis
+            self.joint_publisher(theta11[0] + np.pi/2, theta2[0])
+
+        time.sleep(3)
+
 
 if __name__ == "__main__":
     spawner = Respawn()
 
-    x, y, z = spawner.getPosition()
-    print(x, y, z)
-    time.sleep(5)
+    # x, y, z = spawner.getPosition()
+    # print(x, y, z)
+    # time.sleep(5)
 
-    spawner.setPosition(x + 0.5, y, z)
+    # spawner.setPosition(x + 0.5, y, z)
 
-    time.sleep(5)
-
-    spawner.softRespawnModel()
+    # time.sleep(5)
+    spawner.hardRespawnModel()

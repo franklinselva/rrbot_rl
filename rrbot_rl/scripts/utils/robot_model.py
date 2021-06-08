@@ -18,9 +18,9 @@ class robot:
         self.xEE, self.yEE, self.zEE = sym.Symbol(
             'xEE'), sym.Symbol('yEE'), sym.Symbol('zEE')
 
-        self.t1 = simplify(Matrix([[cos(0), -sin(0)*cos(pi/2), sin(0)*sin(pi/2), 0.1*cos(0)],
-                                   [sin(0), cos(0)*cos(pi/2), -
-                                    cos(0)*sin(pi/2), 0.1*sin(0)],
+        self.t1 = simplify(Matrix([[cos(-pi/2), -sin(-pi/2)*cos(pi/2), sin(-pi/2)*sin(pi/2), 0.05*cos(0)],
+                                   [sin(-pi/2), cos(-pi/2)*cos(pi/2), -
+                                    cos(-pi/2)*sin(pi/2), 0.05*sin(0)],
                                    [0, sin(pi/2), cos(pi/2), 2],
                                    [0, 0, 0, 1]]))
 
@@ -86,7 +86,7 @@ class robot:
         Returns:
             theta1_function, theta2_function (sympy lambdify function): The theta functions given the position of the end-effector
         """
-        self.x_modified = self.x - 0.1
+        self.x_modified = self.x
         self.z_modified = self.z - 2
         self.theta2 = [acos((self.x_modified*self.x_modified + self.z_modified*self.z_modified - 1 - 1)/2),
                        -acos((self.x_modified * self.x_modified + self.z_modified * self.z_modified - 1 - 1)/2)]
@@ -105,6 +105,5 @@ if __name__ == "__main__":
     theta1, theta2 = dh.getInverseKinematics()
     px, py, pz = dh.getForwardKinematics()
 
-    print(px(1.0, 2.5), pz(1.0, 2.5))
-    print(theta2(px(1.0, 2.5), pz(1.0, 2.5)))
-    print(theta1(px(1.0, 2.4), pz(1.0, 2.4), theta2(px(1.0, 2.4), pz(1.0, 2.4))))
+    print(theta2(0, 4))
+    print(theta1(0, 4, theta2(0, 0)))
