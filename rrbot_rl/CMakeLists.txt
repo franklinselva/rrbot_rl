@@ -163,6 +163,7 @@ include_directories(
 catkin_install_python(PROGRAMS
   scripts/move_box
   scripts/sac
+  scripts/result_plot
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
