@@ -39,7 +39,7 @@ python sac
 To start plotting, run
 
 ```
-python3 result_plot.py
+python result_plot.py
 ```
 
 ## Test
