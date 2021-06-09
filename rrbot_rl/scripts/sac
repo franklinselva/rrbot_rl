@@ -378,7 +378,7 @@ if __name__ == '__main__':
 
                 if env.box_thrown:
                     rospy.loginfo("BOX THROWN!! RESETTING")
-                    env.reset()
+                    env.respawner.softRespawnModel()
 
                 elif env.success and done:
                     rospy.loginfo("GOAL REACHED!!!")

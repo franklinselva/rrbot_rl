@@ -193,7 +193,8 @@ class Env():
         Returns:
             state(np.array): Returns the current state when performed reset
         """
-        self.respawner.softRespawnModel()
+        self.respawner.hardRespawnModel()
+        
         time.sleep(1)
 
         self.goal_x, self.goal_y, self.goal_z = self.get_goal_position()
