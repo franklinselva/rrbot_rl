@@ -311,8 +311,8 @@ noise = OUNoise(ACTION_DIMENSION, max_sigma=0.1,
 
 if __name__ == '__main__':
     rospy.init_node('sac_rrbot_trainer')
-    pub_result = rospy.Publisher('result', Float32MultiArray, queue_size=5)
-    result = Float32MultiArray()
+    pub_result = rospy.Publisher('result', Float32, queue_size=5)
+    result = Float32()
     env = Env(ACTION_DIMENSION, q1_VMAX, q2_VMAX)
     before_training = 4
 
@@ -386,8 +386,8 @@ if __name__ == '__main__':
 
                 result = rewards_current_episode
                 qvalue = trainer.get_qvalue().data
-                score = Float32MultiArray()
-                score.data = [result, qvalue]
+                score = Float32()
+                score.data = result
                 pub_result.publish(score)
 
                 # if done or collided
