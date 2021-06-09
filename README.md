@@ -16,6 +16,12 @@ Then build the package when you are in workspace `robot_ws/`
 catkin_make
 ```
 
+To install the dependencies, run
+
+```
+rosdep install --from-paths src --ignore-src -r -y
+```
+
 ## Usage
 
 To start using the package, check whether the workspace is sourced bu,

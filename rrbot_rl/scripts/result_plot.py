@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import pickle
-import datetime as dt
+import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
@@ -15,12 +15,13 @@ class Plotter():
         rospy.Rate(50)
 
         self.reward = []
-        self.time = []
-        self.ep = 0
+        self.ep = []
+        self.count = 0
 
         self.load_data = rospy.get_param("load_data", False)
 
-        reward_sub = rospy.Subscriber("result", Float32, self.sub_callback)
+        self.reward_sub = rospy.Subscriber(
+            "result", Float32, self.sub_callback)
 
         self.figure = plt.figure()
         self.ax = self.figure.add_subplot(1, 1, 1)
@@ -32,7 +33,8 @@ class Plotter():
 
     def sub_callback(self, data):
         self.reward.append(data.data)
-        self.ep += 1
+        self.count += 1
+        self.ep.append(self.count)
 
     def load_data(self):
         try:
@@ -46,26 +48,26 @@ class Plotter():
         with open("graph.txt", "wb") as f:
             pickle.dump(data, f)
 
-    def animate(self, i, time, reward):
-        self.time.append(dt.datetime.now().strftime('%H:%M:%S.%f'))
-
+    def animate(self, i):
         self.ax.clear()
-        self.ax.plot(time, reward)
+        print(self.reward)
+        print(self.count)
+        self.ax.plot(self.ep, self.reward)
 
     def plot(self):
-        plt.title("Reward vs Time - SAC Agent")
-        plt.xlabel("Time")
-        plt.ylabel("Rewards per Episode")
+        plt.title("Reward vs Episodes - SAC Agent")
+        plt.xlabel("Episodes")
+        plt.ylabel("Rewards")
 
         while not rospy.is_shutdown():
             # Start animation
             self.ani = animation.FuncAnimation(
-                self.figure, self.animate, fargs=(self.time, self.reward), interval=1000)
+                self.figure, self.animate, interval=1000)
 
             plt.show()
 
         if rospy.is_shutdown():
-            self.save_data([self.ep, self.data])
+            self.save_data([self.ep, self.reward])
 
 
 if __name__ == "__main__":

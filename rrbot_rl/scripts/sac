@@ -382,7 +382,7 @@ if __name__ == '__main__':
 
                 elif env.success and done:
                     rospy.loginfo("GOAL REACHED!!!")
-                    env.reset()
+                    # env.reset()
 
                 result = rewards_current_episode
                 qvalue = trainer.get_qvalue().data
