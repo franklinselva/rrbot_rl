@@ -18,6 +18,12 @@ catkin_make
 
 ## Usage
 
+To start using the package, check whether the workspace is sourced bu,
+
+```
+source <workspace>/devel/setup.bash
+```
+
 To start the environment setup for the reinforcement learning,
 
 ```
@@ -27,12 +33,19 @@ roslaunch rrbot_rl env_setup.launch
 To start the training process, in directory (from workspace) `src/rrbot_rl/rrbot_rl/scripts`
 
 ```
-python3 sac
+python sac
+```
+
+To start plotting, run
+
+```
+python3 result_plot.py
 ```
 
 ## Test
 
-To test the ros controller, run in a new terminal
+
+To test the ros controller, when the workspace is sourced, run in a new terminal
 
 ```
 rosrun rrbot_rl move_box
@@ -41,5 +54,4 @@ rosrun rrbot_rl move_box
 ## Todo
 
 - Debugging the algorithm
-- Updating the IK reset mechanism
-- Implementing trajectory planning (on request)
+- Implement realtime plotting of `reward vs time`
