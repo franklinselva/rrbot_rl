@@ -8,6 +8,8 @@ import time
 import sys
 from collections import deque
 
+from numpy.lib.type_check import real_if_close
+
 
 from environment import Env
 from utils.onu_noise import OUNoise
@@ -17,7 +19,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 
-from std_msgs.msg import Float32MultiArray, Float32
+from std_msgs.msg import Float32
 import rospy
 
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
@@ -49,10 +51,6 @@ LEARNING_RATE = 0.0003
 GAMMA = 0.99
 TAU = 0.001
 
-if is_training:
-    q1_vel = q1_VMAX*.5
-    q2_vel = q2_VMAX*2*.5
-
 x = 0
 y = 0
 z = 0
@@ -75,22 +73,22 @@ class Critic(nn.Module):
         self.state_dim = state_dim = state_dim
         self.action_dim = action_dim
 
-        self.fc1 = nn.Linear(state_dim, 125)
+        self.fc1 = nn.Linear(state_dim, 75)
         nn.init.xavier_uniform_(self.fc1.weight)
         self.fc1.bias.data.fill_(0.01)
         # self.fc1.weight.data = fanin_init(self.fc1.weight.data.size())
 
-        self.fa1 = nn.Linear(action_dim, 125)
+        self.fa1 = nn.Linear(action_dim, 75)
         nn.init.xavier_uniform_(self.fa1.weight)
         self.fa1.bias.data.fill_(0.01)
         # self.fa1.weight.data = fanin_init(self.fa1.weight.data.size())
 
-        self.fca1 = nn.Linear(125, 250)
+        self.fca1 = nn.Linear(75, 108)
         nn.init.xavier_uniform_(self.fca1.weight)
         self.fca1.bias.data.fill_(0.01)
         # self.fca1.weight.data = fanin_init(self.fca1.weight.data.size())
 
-        self.fca2 = nn.Linear(250, 1)
+        self.fca2 = nn.Linear(108, 1)
         nn.init.xavier_uniform_(self.fca2.weight)
         self.fca2.bias.data.fill_(0.01)
         # self.fca2.weight.data.uniform_(-EPS, EPS)
@@ -115,17 +113,17 @@ class Actor(nn.Module):
         self.q2_vel = q2_vel
         self.action = torch.empty(action_dim)
 
-        self.fa1 = nn.Linear(state_dim, 250)
+        self.fa1 = nn.Linear(state_dim, 75)
         nn.init.xavier_uniform_(self.fa1.weight)
         self.fa1.bias.data.fill_(0.01)
         # self.fa1.weight.data = fanin_init(self.fa1.weight.data.size())
 
-        self.fa2 = nn.Linear(250, 128)
+        self.fa2 = nn.Linear(75, 25)
         nn.init.xavier_uniform_(self.fa2.weight)
         self.fa2.bias.data.fill_(0.01)
         # self.fa2.weight.data = fanin_init(self.fa2.weight.data.size())
 
-        self.fa3 = nn.Linear(128, action_dim)
+        self.fa3 = nn.Linear(25, action_dim)
         nn.init.xavier_uniform_(self.fa3.weight)
         self.fa3.bias.data.fill_(0.01)
         # self.fa3.weight.data.uniform_(-EPS,EPS)
@@ -321,44 +319,52 @@ if __name__ == '__main__':
 
     start_time = time.time()
 
+    if is_training:
+        print('-'*100)
+        rospy.loginfo("STARTED TRAINING PROCESS!!!")
+        print('-'*100)
+
     for ep in range(1, MAX_EPISODES):
         done = False
+        first = True
         state = env.reset()
+
+        if first:
+            rospy.loginfo(
+                "Ep: {}; Current Distance to goal position: {}".format(ep, env.goal_distance))
+            first = False
 
         for step in range(MAX_STEPS):
             state = np.float32(state)
 
             # if is_training and not ep%10 == 0 and ram.len >= before_training*MAX_STEPS:
-            if is_training and not ep % 10 == 0:
+            if is_training:
                 action = trainer.get_exploration_action(state)
-
             else:
-                action = trainer.get_exploration_action(state)
-
-            if not is_training:
                 action = trainer.get_exploitation_action(state)
+
             next_state, reward, done = env.step(action)
             # print('action', action,'r',reward)
             past_action = copy.deepcopy(action)
 
             rewards_current_episode += reward
             next_state = np.float32(next_state)
+
+            # Verbose
             if not ep % 10 == 0 or not ram.len >= before_training*MAX_STEPS:
-                if reward == 100.:
+                if reward == 500.:
                     print('***\n-------- Maximum Reward ----------\n****')
                     for _ in range(3):
                         ram.add(state, action, reward, next_state, done)
-                # elif reward == -100.:
-                #     print('***\n-------- Collision ----------\n****')
-                #     for _ in range():
-                #         ram.add(state, action, reward, next_state, done)
                 else:
                     ram.add(state, action, reward, next_state, done)
             state = copy.deepcopy(next_state)
 
-            if is_training and ep % 3 == 0:
+            if is_training and ep % 10 == 0:
                 # rospy.loginfo("Models Updated")
                 trainer.optimizer()
+
+            # print(step)
 
             if step > 500:
                 done = True
@@ -378,7 +384,7 @@ if __name__ == '__main__':
 
                 if env.box_thrown:
                     rospy.loginfo("BOX THROWN!! RESETTING")
-                    env.respawner.softRespawnModel()
+                    # env.respawner.softRespawnModel()
 
                 elif env.success and done:
                     rospy.loginfo("GOAL REACHED!!!")
@@ -390,9 +396,12 @@ if __name__ == '__main__':
                 score.data = result
                 pub_result.publish(score)
 
-                # if done or collided
-                break
+                if done or env.box_thrown:
+                    break
+
+            rospy.sleep(0.2)
+
         if ep % 200 == 0:
             trainer.save_models(ep)
 
-print('Completed Training')
+    print('Completed Training')

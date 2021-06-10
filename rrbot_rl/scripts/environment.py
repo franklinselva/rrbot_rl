@@ -41,6 +41,13 @@ def q2jointCallback(data):
 
 class Env():
     def __init__(self, action_dim=2, max_Q1_velocity=1., max_Q2_velocity=1.):
+        """Handles the environment setup and reward functions for the training agent
+
+        Args:
+            action_dim (int, optional): Equals to the number of joints of the robot. Defaults to 2.
+            max_Q1_velocity (float, optional): The maximum velocity that the robot joint can go. Defaults to 1..
+            max_Q2_velocity (float, optional): The maximum velocity that the robot joint can go. Defaults to 1..
+        """
         # rospy.init_node("env_handler")
 
         # Subscribers
@@ -66,7 +73,7 @@ class Env():
 
         self.EE_position = Pose()
         self.threshold = 0.1
-        self.prev_goal_distance = 0.
+        self.past_distance = 0
         self.setHome = [1.0, 2.4]
         self.success = False
         self.box_thrown = False
@@ -81,19 +88,19 @@ class Env():
         self.respawner.robot_set_start()
         rospy.sleep(1)
 
-    def getGoalDistace(self):
+    def getDistance(self):
         """Calculates the euclidean distance between the cardboard box's current position and goal position
 
         Returns:
-            goal_distance: Returns the goal distance in float
+            current_distance: Returns the goal distance in float
         """
         x, y, z = self.respawner.getPosition()
-        goal_distance = round(
-            math.sqrt((self.goal_x - x) ** 2 + (self.goal_y - y) ** 2 + (self.goal_z - z) ** 2))
+        init_pose = self.respawner.init_pose
 
-        self.past_distance = goal_distance
+        current_distance = round(
+            math.sqrt((init_pose.position.x - x) ** 2 + (init_pose.position.y - y) ** 2 + (init_pose.position.z - z) ** 2))
 
-        return goal_distance
+        return current_distance
 
     def getState(self):
         """Gets the current state of the cardboard box and robot joint values in the current iteration.
@@ -122,30 +129,34 @@ class Env():
 
         reward = 0.
         cube = Pose()
-        goal_distance = self.getGoalDistace()
+        current_distance = self.getDistance()
         cube = self.respawner.getModelState()
 
-        if goal_distance >= self.threshold and goal_distance > self.prev_goal_distance:
-            reward -= 2
+        if current_distance > self.goal_distance:
+            reward -= 50
             self.success = False
             self.done = False
 
-        if goal_distance < self.prev_goal_distance:
-            reward += 5
-            self.success = False
-            self.done = False
-
-        if goal_distance <= self.threshold:
+        elif current_distance < self.goal_distance:
             reward += 10
+            self.success = False
+            self.done = False
+
+        # A 20 % Threshold for the goal
+        elif current_distance >= self.goal_distance - self.goal_distance*0.2 or current_distance <= self.goal_distance + self.goal_distance*0.2:
+            reward += 100
             self.success = True
             self.done = True
 
         if cube.position.z <= 0.5:
-            reward -= 50
+            reward -= 500
             self.success = False
+            self.done = True
             self.box_thrown = True
         else:
             self.box_thrown = False
+
+        self.past_distance = current_distance
 
         return reward
 
@@ -166,12 +177,12 @@ class Env():
         # Check whether the model is thrown
         cube = self.respawner.getModelState()
 
-        if cube.position.z <= 0.5:
-            self.box_thrown = True
-            self.success = False
-
         state = self.getState()
         reward = self.setReward(state, self.done)
+
+        if cube.position.z <= 0.5:
+            self.respawner.softRespawnModel()
+            state = self.getState()
 
         return state, reward, self.done
 
@@ -194,12 +205,10 @@ class Env():
             state(np.array): Returns the current state when performed reset
         """
         self.respawner.hardRespawnModel()
-        
-        time.sleep(1)
 
-        self.goal_x, self.goal_y, self.goal_z = self.get_goal_position()
+        rospy.sleep(1)
 
-        self.goal_distance = self.getGoalDistace()
+        self.goal_distance = 0.5
         state = self.getState()
 
         return state
@@ -212,8 +221,7 @@ class Env():
         """
 
         init_pose = self.respawner.init_pose
-        goal_x = uniform(init_pose.position.x - 0.5,
-                         init_pose.position.x + 0.5)
+        goal_x = init_pose.position.x - 0.5
         goal_y = init_pose.position.y
         goal_z = init_pose.position.z
 
