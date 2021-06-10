@@ -32,28 +32,22 @@ pip install -r requirements.txt
 
 ## Usage
 
-To start using the package, check whether the workspace is sourced bu,
+ - To start using the package, check whether the workspace is sourced bu,
 
 ```
 source <workspace>/devel/setup.bash
 ```
 
-To start the environment setup for the reinforcement learning,
+ - To start the environment setup for the reinforcement learning,
 
 ```
 roslaunch rrbot_rl env_setup.launch
 ```
 
-To start the training process, in directory (from workspace) `src/rrbot_rl/rrbot_rl/scripts`
+ - To start the training process, in directory (from workspace) `src/rrbot_rl/rrbot_rl/scripts`
 
 ```
 python sac
-```
-
-To start plotting, run
-
-```
-python result_plot.py
 ```
 
 ## Test
