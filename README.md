@@ -4,22 +4,30 @@ This repository contains the implementation for integrating Reinforcement learni
 
 ## Installation
 
-First, start by cloning the repository into a ROS workspace. For example `robot_ws/src`
+ - First, start by cloning the repository into a ROS workspace. For example `robot_ws/src`
 
 ```
 git clone <repo id>
 ```
 
-Then build the package when you are in workspace `robot_ws/`
+ - Then build the package when you are in workspace `robot_ws/`
 
 ```
 catkin_make
 ```
 
-To install the dependencies, run
+ - To install the dependencies, run
 
 ```
 rosdep install --from-paths src --ignore-src -r -y
+```
+
+ - Create an `virualenv env -p=3.8` or `virtualenv env -p=2.7` based on the ROS system.
+
+ - To install the required packages for SAC agent, move to the repository folder and run,
+
+```
+pip install -r requirements.txt
 ```
 
 ## Usage
@@ -55,3 +63,9 @@ To test the ros controller, when the workspace is sourced, run in a new terminal
 ```
 rosrun rrbot_rl move_box
 ```
+
+## Report
+
+A short report on the observation and insight has been explained in the google docs:
+
+https://docs.google.com/document/d/1SxZrRLhKt_44S8qQOtGjdgjxjwMdXkUEFQ-xjdxYAeE/edit?usp=sharing
