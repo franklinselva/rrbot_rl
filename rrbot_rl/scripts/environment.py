@@ -72,7 +72,7 @@ class Env():
         self.action_dim = action_dim
 
         self.EE_position = Pose()
-        self.threshold = 0.1
+        self.past_robot_distance = 0
         self.past_distance = 0
         self.setHome = [1.0, 2.4]
         self.success = False
@@ -116,8 +116,26 @@ class Env():
 
         return np.asarray(state, dtype=np.float32)
 
-    def setReward(self, state, done):
-        """Generates the reward function for the current state
+    def robot2cubeDistance(self, robot_state, cube_state):
+        """Determines the euclidean distance between the robot end-effector and the cube
+
+        Args:
+            robot_state (geometry_msgs/Pose): the current pose of robot end effector
+            cube_state (geometry_msgs/Pose): the current pose of the cardboard box
+
+        Returns:
+            distance (float): The euclidean distance between two frames
+        """
+        distance = 0.
+
+        distance = round(math.sqrt((robot_state.position.x - cube_state.position.x) ** 2 +
+                                   (robot_state.position.y - cube_state.position.y) ** 2 +
+                                   (robot_state.position.z - cube_state.position.z) ** 2))
+
+        return distance
+
+    def setReward(self, state, action, done):
+        """Generates the reward function for the current state of the robot and the cube
 
         Args:
             state (np.array): The current state from the action performed
@@ -128,22 +146,39 @@ class Env():
         """
 
         reward = 0.
-        cube = Pose()
+        cube, robot_state = Pose(), Pose()
         current_distance = self.getDistance()
-        cube = self.respawner.getModelState()
 
-        if current_distance > self.goal_distance:
+        # Reward allocation related to robot and box
+        robot_X = self.respawner.getRobotState(action[0], action[1])
+        robot_state.position.x, robot_state.position.y, robot_state.position.z = robot_X[
+            0], robot_X[1], robot_X[2]
+        cube = self.respawner.getModelState()
+        robot2cube_distance = self.robot2cubeDistance(robot_state, cube)
+
+        if robot2cube_distance <= self.past_robot_distance:
+            reward += 2
+
+        elif robot2cube_distance >= self.past_robot_distance:
+            reward -= 50
+
+         # Robot is near the cube accounting for position error
+        elif robot2cube_distance <= 0.2:
+            reward += 50
+
+        # Reward allocation related to cardboard box
+        if current_distance > self.goal_distance and not self.box_thrown:
             reward -= 50
             self.success = False
             self.done = False
 
-        elif current_distance < self.goal_distance:
-            reward += 10
+        elif current_distance < self.goal_distance and not self.box_thrown:
+            reward += 2
             self.success = False
             self.done = False
 
         # A 20 % Threshold for the goal
-        elif current_distance >= self.goal_distance - self.goal_distance*0.2 or current_distance <= self.goal_distance + self.goal_distance*0.2:
+        elif current_distance >= self.goal_distance - self.goal_distance*0.2 or current_distance <= self.goal_distance + self.goal_distance*0.2 and not self.box_thrown:
             reward += 100
             self.success = True
             self.done = True
@@ -157,6 +192,7 @@ class Env():
             self.box_thrown = False
 
         self.past_distance = current_distance
+        self.past_robot_distance = robot2cube_distance
 
         return reward
 
@@ -178,7 +214,7 @@ class Env():
         cube = self.respawner.getModelState()
 
         state = self.getState()
-        reward = self.setReward(state, self.done)
+        reward = self.setReward(state, action, self.done)
 
         if cube.position.z <= 0.5:
             self.respawner.softRespawnModel()

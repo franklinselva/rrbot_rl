@@ -50,14 +50,8 @@ python result_plot.py
 
 ## Test
 
-
 To test the ros controller, when the workspace is sourced, run in a new terminal
 
 ```
 rosrun rrbot_rl move_box
 ```
-
-## Todo
-
-- Debugging the algorithm
-- Implement realtime plotting of `reward vs time`
