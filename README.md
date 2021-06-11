@@ -57,9 +57,3 @@ To test the ros controller, when the workspace is sourced, run in a new terminal
 ```
 rosrun rrbot_rl move_box
 ```
-
-## Report
-
-A short report on the observation and insight has been explained in the google docs:
-
-https://docs.google.com/document/d/1SxZrRLhKt_44S8qQOtGjdgjxjwMdXkUEFQ-xjdxYAeE/edit?usp=sharing
