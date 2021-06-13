@@ -1,4 +1,4 @@
-## HARD AND SOFT UPDATE OF THE NETWORK
+#HARD AND SOFT UPDATE OF THE NETWORK
 
 def soft_update(target, source, tau):
     for target_param, param in zip(target.parameters(), source.parameters()):

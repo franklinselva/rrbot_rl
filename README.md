@@ -22,7 +22,7 @@ catkin_make
 rosdep install --from-paths src --ignore-src -r -y
 ```
 
- - Create an `virualenv env -p=3.8` or `virtualenv env -p=2.7` based on the ROS system.
+ - Create a venv based on the ROS system.
 
  - To install the required packages for SAC agent, move to the repository folder and run,
 
@@ -32,7 +32,7 @@ pip install -r requirements.txt
 
 ## Usage
 
- - To start using the package, check whether the workspace is sourced bu,
+ - To start using the package, check whether the workspace is sourced,
 
 ```
 source <workspace>/devel/setup.bash
@@ -57,9 +57,3 @@ To test the ros controller, when the workspace is sourced, run in a new terminal
 ```
 rosrun rrbot_rl move_box
 ```
-
-## Report
-
-A short report on the observation and insight has been explained in the google docs:
-
-https://docs.google.com/document/d/1SxZrRLhKt_44S8qQOtGjdgjxjwMdXkUEFQ-xjdxYAeE/edit?usp=sharing
